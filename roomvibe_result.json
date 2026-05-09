@@ -1,0 +1,63 @@
+{
+  "room_type": "bedroom",
+  "room_type_confidence": 0.92,
+  "estimated_sqm": 10,
+  "observed_issues": [
+    {
+      "id": "cramped_desk_placement",
+      "label": "Desk crowded into corner limits movement",
+      "evidence": "The desk and dual monitors are pushed tightly into the corner with minimal clearance around the office chair",
+      "confidence": 0.88
+    },
+    {
+      "id": "no_natural_light_visible",
+      "label": "Heavy curtain blocks all natural light",
+      "evidence": "Floor-to-ceiling grey curtain completely covers what appears to be a window, creating artificial lighting dependency",
+      "confidence": 0.85
+    },
+    {
+      "id": "mixed_zone_conflict",
+      "label": "Sleep and work zones uncomfortably close",
+      "evidence": "Bed with yellow cover is immediately adjacent to office setup with no visual separation",
+      "confidence": 0.9
+    },
+    {
+      "id": "cable_management_lacking",
+      "label": "Visible cables around desk area",
+      "evidence": "Multiple cables visible running from monitors and equipment on the black desk surface",
+      "confidence": 0.75
+    },
+    {
+      "id": "floor_clutter",
+      "label": "Items scattered on floor near bed",
+      "evidence": "Headphones and miscellaneous items visible on the floor beside the bed",
+      "confidence": 0.82
+    }
+  ],
+  "mood_suggestion": {
+    "primary": "calm",
+    "reason": "A calming palette would help reduce visual stress in this multifunctional small space where work and rest compete"
+  },
+  "dna": {
+    "natural_light": "limited",
+    "ceiling_height": "standard",
+    "style_tags": [
+      "minimal",
+      "contemporary"
+    ],
+    "key_materials": [
+      "laminate flooring",
+      "fabric curtain",
+      "melamine furniture",
+      "mesh office chair"
+    ],
+    "dominant_colour": "grey",
+    "spatial_tactics": [
+      "corner desk maximises floor space",
+      "vertical storage shelving",
+      "curtain creates visual backdrop"
+    ]
+  },
+  "australian_relevance_score": 0.78,
+  "confidence": 0.85
+}

@@ -1,0 +1,41 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Local skill installs (skills-lock.json is the manifest and IS committed; .agents/ is the local materialisation)
+.agents/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.Python
+venv/
+.venv/
+env/
+*.egg
+
+# Node (when frontend lands)
+node_modules/
+dist/
+build/
+.next/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
