@@ -52,7 +52,7 @@ export default function UploadPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Camera — opens native camera on mobile */}
+            {/* Camera — no capture attribute; iOS shows native action sheet which avoids black screen bug */}
             <button
               onClick={() => cameraRef.current?.click()}
               className="w-full rounded-2xl bg-stone-900 text-stone-50 py-4 px-6 text-lg font-semibold
@@ -64,7 +64,6 @@ export default function UploadPage() {
               ref={cameraRef}
               type="file"
               accept="image/*"
-              capture="environment"
               className="hidden"
               onChange={onInputChange}
             />
