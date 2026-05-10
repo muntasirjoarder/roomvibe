@@ -9,27 +9,26 @@ export default async function ResultPage({
   const { filename } = await searchParams;
 
   return (
-    <main className="flex flex-col flex-1 items-center justify-center px-6 py-16 text-center">
-      <div className="max-w-sm w-full flex flex-col gap-8">
-        <div className="flex flex-col gap-3">
+    <main className="flex flex-col flex-1 px-6 py-12 sm:px-8 sm:py-16">
+      <div className="max-w-sm sm:max-w-md w-full mx-auto flex flex-col gap-12">
+        <div className="flex flex-col gap-2 text-center">
           <div className="text-5xl">✓</div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">
+          <h1 className="font-sans text-title-xl text-ink">
             Photo received
           </h1>
           {filename && (
-            <p className="text-stone-500 text-sm break-all">
+            <p className="text-caption text-mute break-all">
               {decodeURIComponent(filename)}
             </p>
           )}
-          <p className="text-stone-400 text-sm mt-2">
+          <p className="text-caption text-mute">
             Recommendations coming soon — this is the walking skeleton.
           </p>
         </div>
 
         <Link
           href="/upload"
-          className="w-full rounded-2xl border-2 border-stone-200 text-stone-700 py-4 px-6 text-base font-semibold
-                     active:scale-95 transition-transform"
+          className="inline-flex items-center justify-center w-full bg-surface text-ink border border-stone-line py-4 px-6 rounded-2xl text-body font-semibold tracking-tight active:scale-[0.97] hover:bg-stone-soft transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Upload another photo
         </Link>

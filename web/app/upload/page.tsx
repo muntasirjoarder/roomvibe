@@ -49,29 +49,28 @@ export default function UploadPage() {
   }
 
   return (
-    <main className="flex flex-col flex-1 items-center justify-center px-6 py-16">
-      <div className="max-w-sm w-full flex flex-col gap-8">
+    <main className="flex flex-col flex-1 px-6 py-12 sm:px-8 sm:py-16">
+      <div className="max-w-sm sm:max-w-md w-full mx-auto flex flex-col gap-8">
         <div className="flex flex-col gap-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">
+          <h1 className="font-sans text-title-xl text-ink">
             Add a room photo
           </h1>
-          <p className="text-stone-500">
+          <p className="text-body text-ink-muted">
             A clear, wide-angle shot works best. Up to 3 photos supported.
           </p>
         </div>
 
         {uploading ? (
-          <div className="flex flex-col items-center gap-3 py-8 text-stone-500">
-            <div className="w-8 h-8 border-2 border-stone-300 border-t-stone-700 rounded-full animate-spin" />
-            <span>Uploading…</span>
+          <div className="flex flex-col items-center gap-3 py-8 text-ink-muted">
+            <div className="w-8 h-8 border-2 border-stone-soft border-t-ink rounded-full animate-spin" />
+            <span className="text-body">Uploading…</span>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {/* Camera — getUserMedia primes iOS permission before opening file input */}
             <button
               onClick={handleCameraClick}
-              className="w-full rounded-2xl bg-stone-900 text-stone-50 py-4 px-6 text-lg font-semibold
-                         active:scale-95 transition-transform"
+              className="inline-flex items-center justify-center w-full bg-clay-500 text-canvas py-4 px-6 rounded-2xl text-body font-semibold tracking-tight active:scale-[0.97] active:bg-clay-700 hover:bg-clay-600 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Take a photo
             </button>
@@ -86,8 +85,7 @@ export default function UploadPage() {
             {/* Gallery — opens photo picker */}
             <button
               onClick={() => galleryRef.current?.click()}
-              className="w-full rounded-2xl border-2 border-stone-200 text-stone-700 py-4 px-6 text-lg font-semibold
-                         active:scale-95 transition-transform"
+              className="inline-flex items-center justify-center w-full bg-surface text-ink border border-stone-line py-4 px-6 rounded-2xl text-body font-semibold tracking-tight active:scale-[0.97] hover:bg-stone-soft transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Choose from gallery
             </button>
@@ -102,7 +100,7 @@ export default function UploadPage() {
         )}
 
         {error && (
-          <p className="text-center text-red-600 text-sm">{error}</p>
+          <p className="text-center text-red-600 text-body">{error}</p>
         )}
       </div>
     </main>
