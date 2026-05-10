@@ -10,6 +10,21 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  async function handleCameraClick() {
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach((t) => t.stop());
+      } catch {
+        setError(
+          "Camera access denied. On iPhone: Settings → Safari → Camera → Allow."
+        );
+        return;
+      }
+    }
+    cameraRef.current?.click();
+  }
+
   async function handleFile(file: File) {
     setUploading(true);
     setError(null);
@@ -52,9 +67,9 @@ export default function UploadPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Camera — no capture attribute; iOS shows native action sheet which avoids black screen bug */}
+            {/* Camera — getUserMedia primes iOS permission before opening file input */}
             <button
-              onClick={() => cameraRef.current?.click()}
+              onClick={handleCameraClick}
               className="w-full rounded-2xl bg-stone-900 text-stone-50 py-4 px-6 text-lg font-semibold
                          active:scale-95 transition-transform"
             >
