@@ -42,30 +42,49 @@ This ADR captures the engineering-stack decisions made as part of issue #1 (walk
 
 - Vercel Logs + Vercel Analytics. No Sentry, no Datadog at v1.
 
-### Model selection per issue (Claude)
+### Model selection: plan-then-execute pattern
 
-Claude usage costs scale steeply across the family (Haiku → Sonnet → Opus is roughly 1× → 3.75× → 19× input cost). To stay disciplined: pick the cheapest model that comfortably handles each issue's complexity. Default-to-Sonnet is wasteful; default-to-Haiku is risky on architectural work.
+Claude usage costs scale ~1× → 3.75× → 19× across Haiku → Sonnet → Opus (input tokens). The naive strategy is "match model to issue complexity." The better strategy, given how the cost curve interacts with token volume, is **plan-then-execute**: use Opus to author a prescriptive planning artifact, then use Haiku to execute against it.
 
-| Issue | Model | Justification |
-|---|---|---|
-| #1 Walking skeleton | Sonnet (done) | Stack decisions, cross-cutting |
-| #2 Room DNA + FM1 gate | Sonnet | Vision prompt design + golden-file tests + `room-dna-extractor` interface (reused in #11) |
-| #3 Intake screen | Haiku | UI + state + API extension, pattern-following |
-| #4 Aspirational tier + `image-renderer` | Sonnet | `image-renderer` abstraction is load-bearing for #6 and v1.5 Nano Banana A/B |
-| #5 Catalog + product-matcher | Sonnet | Matching logic + FM4 partial-result + table-driven tests |
-| #6 Doable after-image | Haiku | Re-uses #4's renderer; orchestration only |
-| #7 Per-tier re-roll + rate limit | Haiku | Standard endpoint + counter |
-| #8 Save-as-PDF | Haiku | Library glue (pdf-lib / react-pdf) |
-| #9 Failure modes (FM2-FM5) | Sonnet | Four conditionals × ensuring no double-counting against re-roll cap |
-| #10 Photo override | Haiku | Small, contained UI |
-| #11 Catalog expansion + auto-tag tool | Haiku | Tool is glue; curation is human |
-| #12 IKEA affiliate | Haiku | Admin-heavy; code is trivial URL wrapping |
-| #13 PWA polish + design review | Sonnet | iOS Safari quirks + Lighthouse + design judgment |
-| #14 DESIGN.md adoption | Sonnet | Design system authorship is judgment-heavy |
+The math: planning artifacts are small (~10–50KB of specs), execution is large (~hundreds of KB of code edits + iteration). Pay the 5× Opus tax on the small planning slice, save 4× on the big execution slice. Net is ~30–40% cheaper than running everything on Sonnet, with stronger architectural reasoning baked in upfront.
 
-**Opus is reserved**, not defaulted-to. Use it ad-hoc when stuck on hard bugs or when a critical abstraction needs deeper reasoning. Don't pre-assign it to issues.
+The discipline: **planning artifacts must leave no judgment gaps.** A good plan contains:
 
-**Process:** start each session with `/model haiku` (or `sonnet`) before opening the issue. Don't switch mid-issue — the model that picked the approach should finish it.
+1. Exact interface signatures (function names, params, return types, error shapes)
+2. Prompt templates verbatim — no "the prompt should roughly..."
+3. Test cases enumerated (inputs, expected outputs, edge cases)
+4. File-level decisions (where each module lives, what it imports)
+5. Failure-mode behaviour pinned (what to return on error, what to log)
+
+If the spec is hand-wavy, Haiku fills the gaps poorly or stalls. The whole strategy collapses. Opus must do the thinking *before* Haiku starts coding.
+
+| Issue | Plan | Execute | Notes |
+|---|---|---|---|
+| #1 Walking skeleton | (done w/ Sonnet) | (done) | Shipped |
+| #2 Room DNA + FM1 | **Opus** | Haiku | Opus authors prompt templates + classifier strategy + golden-test plan |
+| #3 Intake screen | — | Haiku | DESIGN.md + ADR-0004 are sufficient guidance |
+| #4 Aspirational tier + image-renderer | **Opus** | Haiku | Opus designs the renderer abstraction (load-bearing for #6, #10, v1.5 Nano Banana A/B) |
+| #5 Catalog + product-matcher | **Opus** | Haiku | Opus specs matcher + FM4 partial-result + test matrix |
+| #6 Doable after-image | — | Haiku | Re-uses #4's plan |
+| #7 Re-roll + rate limit | — | Haiku | Standard pattern |
+| #8 Save-as-PDF | — | Haiku | Library glue (pdf-lib / react-pdf) |
+| #9 Failure modes (FM2-FM5) | **Opus** | Haiku | Opus specs the FM state machine + cap-counting rules |
+| #10 Photo override | — | Haiku | Re-uses #4 + #7 plans |
+| #11 Catalog + auto-tag | — | Haiku | Auto-tag re-uses #2 extractor |
+| #12 Affiliate | — | Haiku | Trivial URL wrapping |
+| #13 PWA polish | **Opus** | Haiku | Opus authors iOS Safari quirks + Lighthouse remediation plan |
+| #14 DESIGN.md | **Opus** | Haiku | Opus authors DESIGN.md; Haiku refactors screens to use it |
+
+**Sonnet's role shrinks** to fallback: when Opus's plan turns out to have a gap and you don't want to re-engage Opus mid-execution, Sonnet bridges the gap.
+
+**Mid-issue escalation triggers** (Haiku → Sonnet → Opus):
+
+1. Multiple test failures with no clear root cause → bump up
+2. Generated code compiles but feels off (judgment gap) → bump up
+3. Architectural decision emerges that wasn't in the issue brief → bump up
+4. Same misunderstanding corrected 3+ times → wrong model for this work → bump up
+
+**Process:** Set the model before opening the issue, don't switch mid-issue. The model that picked the approach should finish it.
 
 ## Why this combination
 
