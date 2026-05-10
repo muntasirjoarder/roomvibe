@@ -42,6 +42,31 @@ This ADR captures the engineering-stack decisions made as part of issue #1 (walk
 
 - Vercel Logs + Vercel Analytics. No Sentry, no Datadog at v1.
 
+### Model selection per issue (Claude)
+
+Claude usage costs scale steeply across the family (Haiku → Sonnet → Opus is roughly 1× → 3.75× → 19× input cost). To stay disciplined: pick the cheapest model that comfortably handles each issue's complexity. Default-to-Sonnet is wasteful; default-to-Haiku is risky on architectural work.
+
+| Issue | Model | Justification |
+|---|---|---|
+| #1 Walking skeleton | Sonnet (done) | Stack decisions, cross-cutting |
+| #2 Room DNA + FM1 gate | Sonnet | Vision prompt design + golden-file tests + `room-dna-extractor` interface (reused in #11) |
+| #3 Intake screen | Haiku | UI + state + API extension, pattern-following |
+| #4 Aspirational tier + `image-renderer` | Sonnet | `image-renderer` abstraction is load-bearing for #6 and v1.5 Nano Banana A/B |
+| #5 Catalog + product-matcher | Sonnet | Matching logic + FM4 partial-result + table-driven tests |
+| #6 Doable after-image | Haiku | Re-uses #4's renderer; orchestration only |
+| #7 Per-tier re-roll + rate limit | Haiku | Standard endpoint + counter |
+| #8 Save-as-PDF | Haiku | Library glue (pdf-lib / react-pdf) |
+| #9 Failure modes (FM2-FM5) | Sonnet | Four conditionals × ensuring no double-counting against re-roll cap |
+| #10 Photo override | Haiku | Small, contained UI |
+| #11 Catalog expansion + auto-tag tool | Haiku | Tool is glue; curation is human |
+| #12 IKEA affiliate | Haiku | Admin-heavy; code is trivial URL wrapping |
+| #13 PWA polish + design review | Sonnet | iOS Safari quirks + Lighthouse + design judgment |
+| #14 DESIGN.md adoption | Sonnet | Design system authorship is judgment-heavy |
+
+**Opus is reserved**, not defaulted-to. Use it ad-hoc when stuck on hard bugs or when a critical abstraction needs deeper reasoning. Don't pre-assign it to issues.
+
+**Process:** start each session with `/model haiku` (or `sonnet`) before opening the issue. Don't switch mid-issue — the model that picked the approach should finish it.
+
 ## Why this combination
 
 - **Closest to running URL.** Next.js + Vercel + GitHub gives free preview deploys per PR with zero CI configuration. Walking-skeleton-first means time-to-deployed-URL matters more than long-term flexibility.
