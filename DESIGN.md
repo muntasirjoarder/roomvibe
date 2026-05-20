@@ -383,7 +383,7 @@ Three levels only. No multi-shadow, no inset, no colored shadows.
 
 ## 9. For AI agents
 
-You are an AI agent (Claude Haiku, typically) executing a UI issue. **Read this section carefully — these are non-negotiable execution rules.**
+You are an AI agent (typically the 'execute' model defined in `docs/adr/0006-ai-model-selection.md`) executing a UI issue. **Read this section carefully — these are non-negotiable execution rules.**
 
 ### Before writing any UI code
 

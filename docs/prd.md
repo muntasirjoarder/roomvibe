@@ -98,10 +98,11 @@ The system decomposes into eight modules. Boundaries chosen to maximize testabil
 **Deep modules** (encapsulate complex logic behind simple, stable interfaces):
 
 - `room-dna-extractor` — Takes 1–3 input photos and returns a structured `RoomDNA` JSON object. Wraps the Anthropic Claude Vision call and prompt that the PoC already proved works. Pure mapping function from images to JSON; same module is later used to extract product DNA from catalog images and (in v1.5) inspiration DNA from synthetic stunning rooms — this symmetry is deliberate per ADR-0002.
+- `room-dna-extractor` — Takes 1–3 input photos and returns a structured `RoomDNA` JSON object. Wraps the selected vision vendor's API call (see ADR-0006) and prompt. Pure mapping function from images to JSON; same module is later used to extract product DNA from catalog images and (in v1.5) inspiration DNA from synthetic stunning rooms — this symmetry is deliberate per ADR-0002.
 - `room-type-classifier` — Lightweight variant that takes a single photo and returns `{type, confidence}`. Used by FM1 for the pre-pipeline gate (it must run before any expensive work). Kept as a separate module rather than folded into `room-dna-extractor` because the latency and cost profiles differ — it must complete in roughly one second.
 - `recommendation-generator` — Takes `RoomDNA` plus `Intake` plus a `tier` parameter (`aspirational` or `doable`) and returns a `Recommendation`. Single module parameterized by tier; the prompt structure differs per tier but the surrounding orchestration is identical. Encapsulates the load-bearing prompt engineering.
 - `product-matcher` — Takes a `DesiredDNA` (categories of changes the recommendation calls for) plus a `BudgetBucket` and returns `CatalogItem[]` that satisfy both constraints. Pure function over the catalog. This is the core "stunning but doable" magic — a poor matcher will silently degrade output quality.
-- `image-renderer` — Wraps the chosen image-generation vendor (FLUX Kontext at v1) behind a vendor-agnostic interface: `generate(basePhoto, prompt, params) -> Image`. Required so that Nano Banana / future vendor swaps are a one-day implementation change rather than a quarter of work — see ADR-0003.
+- `image-renderer` — Wraps the chosen image-generation vendor (see ADR-0006) behind a vendor-agnostic interface: `generate(basePhoto, prompt, params) -> Image`. Required so that future vendor swaps are a one-day implementation change rather than a quarter of work — see ADR-0003.
 - `pdf-exporter` — Takes a `SessionResult` and produces a downloadable PDF blob.
 
 **Coordination / shallow modules**:
@@ -141,8 +142,8 @@ Stable across implementations; the *shape* of the contract is part of the archit
 
 - **Frontend platform**: PWA, mobile-first. Service worker for "add to home screen" prompt and offline shell. Single codebase; framework choice (React / Svelte / Vue) deferred to engineering with no architectural preference at PRD time.
 - **Backend shape**: stateless API server hosting the orchestrator and module interfaces. Session state lives in a server-side store keyed by session ID, expiring after a short TTL (working: 24 hours). Language choice deferred.
-- **Vision vendor**: Anthropic Claude (already proven in PoC). Used by `room-dna-extractor`, `room-type-classifier`, and offline by the catalog-curation pipeline to auto-tag product images.
-- **Image-generation vendor**: FLUX Kontext at v1, accessed via a hosting partner (BFL direct, fal.ai, or Replicate — engineering's call based on latency and pricing). Behind `image-renderer` abstraction to support v1.1 A/B against Gemini 2.5 Flash Image (Nano Banana).
+- **Vision vendor**: See ADR-0006. Used by `room-dna-extractor`, `room-type-classifier`, and offline by the catalog-curation pipeline to auto-tag product images.
+- **Image-generation vendor**: See ADR-0006. Accessed via a hosting partner (engineering's call based on latency and pricing). Behind `image-renderer` abstraction to support future A/B tests.
 - **Catalog storage**: SQLite at v1. ~200 items, read-mostly during user sessions, refreshed monthly via the curation workflow.
 - **Image hosting**: product images hotlinked from retailer CDNs (IKEA's `images.ikea.com` is stable; Bunnings less so — fall back to a cached copy on our object storage if hotlinking breaks). After-images stored on our object storage, served via CDN.
 - **Affiliate**: IKEA AU affiliate program signup required before launch. Tracking parameters injected by `catalog-store` when serving URLs. Affiliate disclosure copy lives in the doable tier per ADR-0003.
@@ -161,6 +162,7 @@ Stable across implementations; the *shape* of the contract is part of the archit
 
 - **External behavior, not implementation details.** A test that asserts "the function returns a JSON object with these keys" is good; a test that asserts "the function calls Claude with this exact prompt string" is bad — prompts will iterate continuously and shouldn't break tests.
 - **Mock vendor APIs at the test boundary.** Anthropic, FLUX Kontext, and any other paid API should be mocked in unit tests to keep them fast and deterministic. A nightly integration test suite exercises the real vendors against fixed fixtures to catch contract regressions.
+- **Mock vendor APIs at the test boundary.** The selected vision and image generation vendors (see ADR-0006) and any other paid API should be mocked in unit tests to keep them fast and deterministic. A nightly integration test suite exercises the real vendors against fixed fixtures to catch contract regressions.
 - **Use fixture data for golden-file comparisons.** Two sample bedroom photos already exist in the repo; these become the seed fixtures.
 - **Pin shapes, not strings.** Output JSON should be validated against schemas (or TypeScript types) — content-level assertions should be limited to non-prose fields (numbers, enums, presence/absence of keys).
 
@@ -168,7 +170,9 @@ Stable across implementations; the *shape* of the contract is part of the archit
 
 1. **`room-dna-extractor`** — Golden-file tests over fixture room photos. Verify shape conformance, presence of all required keys, sensible value ranges (confidence 0–1, room_type in enum). Mock the Anthropic call; record-and-replay an actual Claude response as the golden file.
 2. **`product-matcher`** — Table-driven tests over a small fixture catalog (~10 items). Cover: happy match, FM4 (impossible budget — should return partial set with a flag), category-gap edge cases (no rug exists in catalog), mood/style filtering, no-result fallback path.
-3. **`image-renderer`** — Interface-contract tests with a mocked vendor. Verify the contract holds (input shape, output shape, error shape) when a stub vendor is swapped in for FLUX Kontext. This is the test that protects the planned v1.1 Nano Banana A/B.
+1. **`room-dna-extractor`** — Golden-file tests over fixture room photos. Verify shape conformance, presence of all required keys, sensible value ranges (confidence 0–1, room_type in enum). Mock the vision vendor call; record-and-replay an actual response as the golden file.
+2. **`product-matcher`** — Table-driven tests over a small fixture catalog (~10 items). Cover: happy match, FM4 (impossible budget — should return partial set with a flag), category-gap edge cases (no rug exists in catalog), mood/style filtering, no-result fallback path.
+3. **`image-renderer`** — Interface-contract tests with a mocked vendor. Verify the contract holds (input shape, output shape, error shape) when a stub vendor is swapped in. This is the test that protects future A/B tests.
 4. **`recommendation-generator`** — Light pinning tests over fixture intakes; verify shape, length of `change_bullets`, presence of `style_direction` and `after_image_prompt` (the prompt handed to image-renderer). Don't assert specific copy.
 5. **`pdf-exporter`** — Snapshot tests over a fixture `SessionResult`. Verify PDF metadata (page count, fixed elements like header/footer) without asserting visual fidelity pixel-by-pixel.
 
@@ -218,10 +222,11 @@ Documented across the ADRs and reproduced here for one-stop reference:
 ## Further Notes
 
 - **The PoC at `roomvibe_poc.py` is a smoke test for Claude Vision API access**, not a design constraint. Its specific JSON shape, Australian framing in prompts, and `room_type` enum are pre-grill artefacts. Engineering should refactor freely; the only thing to preserve is the working API call pattern.
+- **The PoC at `roomvibe_poc.py` is a smoke test for the vision vendor's API access**, not a design constraint. Its specific JSON shape, Australian framing in prompts, and `room_type` enum are pre-grill artefacts. Engineering should refactor freely; the only thing to preserve is the working API call pattern.
 - **All v1 design decisions are captured in the ADRs**. Any decision the engineering team would change should be captured as a superseding ADR — don't quietly diverge.
 - **"Stunning but doable" is the load-bearing tagline** and a useful test for any product decision: does this make the result more *stunning*? More *doable*? Or does it dilute one for the other? If neither, reconsider.
 - **v1.5 roadmap items already mentally allocated** (not commitments, but the natural next moves):
-  - Synthetic inspiration corpus (M3.5-synth) — pre-generate stunning rooms with FLUX/SDXL, run them through `room-dna-extractor` to build a curated DNA library, condition `recommendation-generator` on observed-good combinations.
+  - Synthetic inspiration corpus (M3.5-synth) — pre-generate stunning rooms with the selected image generation vendor, run them through `room-dna-extractor` to build a curated DNA library, condition `recommendation-generator` on observed-good combinations.
   - Native share sheet with a designed share-card.
   - Hero-plus-tabs UI evolution if data shows comparison is the dominant action.
   - Broader catalog (more items, possibly Google Shopping API supplement).

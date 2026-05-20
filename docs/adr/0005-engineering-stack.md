@@ -26,7 +26,7 @@ This ADR captures the engineering-stack decisions made as part of issue #1 (walk
 
 ### Long-running AI calls: queue + poll, not synchronous
 
-- FLUX Kontext + Claude Vision can take 30–60s. Vercel Hobby caps function execution at 60s; Pro at 300s. Neither is a comfortable fit for synchronous request/response from a phone over flaky mobile networks.
+- The selected image generation and vision models (see ADR-0006) can take 30–60s. Vercel Hobby caps function execution at 60s; Pro at 300s. Neither is a comfortable fit for synchronous request/response from a phone over flaky mobile networks.
 - **Pattern**: client `POST /api/sessions` returns a session ID immediately; client polls `GET /api/sessions/:id` (or subscribes via SSE) until the recommendation is ready. Worker uses Vercel's background functions (or a dedicated `/api/worker/*` route triggered by the initial POST).
 - This pattern is **not** required for the walking skeleton (issue #1 — stub response only) but the API contract should be designed so issue #5 onwards can adopt it without breaking changes.
 
@@ -42,49 +42,9 @@ This ADR captures the engineering-stack decisions made as part of issue #1 (walk
 
 - Vercel Logs + Vercel Analytics. No Sentry, no Datadog at v1.
 
-### Model selection: plan-then-execute pattern
+### AI Model Selection
 
-Claude usage costs scale ~1× → 3.75× → 19× across Haiku → Sonnet → Opus (input tokens). The naive strategy is "match model to issue complexity." The better strategy, given how the cost curve interacts with token volume, is **plan-then-execute**: use Opus to author a prescriptive planning artifact, then use Haiku to execute against it.
-
-The math: planning artifacts are small (~10–50KB of specs), execution is large (~hundreds of KB of code edits + iteration). Thanks to highly detailed upfront documentation (PRD, ADRs), we can safely use Sonnet for most planning slices, saving roughly 80% over Opus. Opus is reserved only for load-bearing prompt engineering where its advanced reasoning is essential.
-
-The discipline: **planning artifacts must leave no judgment gaps.** A good plan contains:
-
-1. Exact interface signatures (function names, params, return types, error shapes)
-2. Prompt templates verbatim — no "the prompt should roughly..."
-3. Test cases enumerated (inputs, expected outputs, edge cases)
-4. File-level decisions (where each module lives, what it imports)
-5. Failure-mode behaviour pinned (what to return on error, what to log)
-
-If the spec is hand-wavy, Haiku fills the gaps poorly or stalls. The whole strategy collapses. Opus must do the thinking *before* Haiku starts coding.
-
-| Issue | Plan | Execute | Notes |
-|---|---|---|---|
-| #1 Walking skeleton | (done w/ Sonnet) | (done) | Shipped |
-| #2 Room DNA + FM1 | **Opus** | Haiku | Opus authors prompt templates + classifier strategy + golden-test plan |
-| #3 Intake screen | — | Haiku | DESIGN.md + ADR-0004 are sufficient guidance |
-| #4 Aspirational tier + image-renderer | **Sonnet** | Haiku | Sonnet designs the renderer abstraction (load-bearing for #6, #10, v1.5 Nano Banana A/B) |
-| #5 Catalog + product-matcher | **Sonnet** | Haiku | Sonnet specs matcher + FM4 partial-result + test matrix |
-| #6 Doable after-image | — | Haiku | Re-uses #4's plan |
-| #7 Re-roll + rate limit | — | Haiku | Standard pattern |
-| #8 Save-as-PDF | — | Haiku | Library glue (pdf-lib / react-pdf) |
-| #9 Failure modes (FM2-FM5) | **Sonnet** | Haiku | Sonnet specs the FM state machine + cap-counting rules |
-| #10 Photo override | — | Haiku | Re-uses #4 + #7 plans |
-| #11 Catalog + auto-tag | — | Haiku | Auto-tag re-uses #2 extractor |
-| #12 Affiliate | — | Haiku | Trivial URL wrapping |
-| #13 PWA polish | **Sonnet** | Haiku | Sonnet authors iOS Safari quirks + Lighthouse remediation plan |
-| #14 DESIGN.md | **Sonnet** | Haiku | Sonnet authors DESIGN.md; Haiku refactors screens to use it |
-
-**Sonnet's role expands** to primary planner for well-defined PRD tasks, while Opus is reserved for high-ambiguity prompt engineering tasks (like Issue #2) and Haiku remains the execution engine.
-
-**Mid-issue escalation triggers** (Haiku → Sonnet → Opus):
-
-1. Multiple test failures with no clear root cause → bump up
-2. Generated code compiles but feels off (judgment gap) → bump up
-3. Architectural decision emerges that wasn't in the issue brief → bump up
-4. Same misunderstanding corrected 3+ times → wrong model for this work → bump up
-
-**Process:** Set the model before opening the issue, don't switch mid-issue. The model that picked the approach should finish it.
+The specific choice of AI vendors and models, along with the strategy for their use (e.g., plan-then-execute), is centralized in ADR-0006. This allows for easier swapping of models without altering the core engineering stack.
 
 ## Why this combination
 
@@ -95,11 +55,11 @@ If the spec is hand-wavy, Haiku fills the gaps poorly or stalls. The whole strat
 
 ## Trade-offs and what we're *not* picking up
 
-- **Vercel function timeouts**: 60s on Hobby, 300s on Pro. FLUX Kontext can blow through both. Mitigated by the queue+poll pattern above; not a stack-changer. If FLUX waits ever exceed 5min we revisit (probably move the worker to Cloudflare Durable Objects or a Fly.io machine, keep the frontend on Vercel).
+- **Vercel function timeouts**: 60s on Hobby, 300s on Pro. The selected image generation vendor can blow through both. Mitigated by the queue+poll pattern above; not a stack-changer. If waits ever exceed 5min we revisit (probably move the worker to Cloudflare Durable Objects or a Fly.io machine, keep the frontend on Vercel).
 - **Cold starts** on Vercel functions add ~200-500ms to the first call after idle. Acceptable for a session-create call where the user is already on a "tap → wait" beat.
 - **Vendor lock-in to Vercel**: Vercel Blob + KV + Build pipeline are all Vercel-flavoured. Mitigated by the abstraction in ADR-0002 around the FLUX call (already pattern-established) — apply the same shape to storage. We're not building portability for its own sake; we will pay the porting cost the day we need to.
 - **No native mobile app at v1**: PWA only. ADR-0003 already locks this in.
-- **No edge runtime / Workers**: Node.js runtime only, for AI SDK compatibility (Anthropic SDK + FLUX SDK both prefer Node).
+- **No edge runtime / Workers**: Node.js runtime only, for AI SDK compatibility (the selected vendor SDKs prefer Node, see ADR-0006).
 
 ## Consequences
 
