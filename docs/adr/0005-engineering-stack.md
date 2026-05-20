@@ -47,6 +47,7 @@ This ADR captures the engineering-stack decisions made as part of issue #1 (walk
 Claude usage costs scale ~1× → 3.75× → 19× across Haiku → Sonnet → Opus (input tokens). The naive strategy is "match model to issue complexity." The better strategy, given how the cost curve interacts with token volume, is **plan-then-execute**: use Opus to author a prescriptive planning artifact, then use Haiku to execute against it.
 
 The math: planning artifacts are small (~10–50KB of specs), execution is large (~hundreds of KB of code edits + iteration). Pay the 5× Opus tax on the small planning slice, save 4× on the big execution slice. Net is ~30–40% cheaper than running everything on Sonnet, with stronger architectural reasoning baked in upfront.
+The math: planning artifacts are small (~10–50KB of specs), execution is large (~hundreds of KB of code edits + iteration). Thanks to highly detailed upfront documentation (PRD, ADRs), we can safely use Sonnet for most planning slices, saving roughly 80% over Opus. Opus is reserved only for load-bearing prompt engineering where its advanced reasoning is essential.
 
 The discipline: **planning artifacts must leave no judgment gaps.** A good plan contains:
 
@@ -65,17 +66,23 @@ If the spec is hand-wavy, Haiku fills the gaps poorly or stalls. The whole strat
 | #3 Intake screen | — | Haiku | DESIGN.md + ADR-0004 are sufficient guidance |
 | #4 Aspirational tier + image-renderer | **Opus** | Haiku | Opus designs the renderer abstraction (load-bearing for #6, #10, v1.5 Nano Banana A/B) |
 | #5 Catalog + product-matcher | **Opus** | Haiku | Opus specs matcher + FM4 partial-result + test matrix |
+| #4 Aspirational tier + image-renderer | **Sonnet** | Haiku | Sonnet designs the renderer abstraction (load-bearing for #6, #10, v1.5 Nano Banana A/B) |
+| #5 Catalog + product-matcher | **Sonnet** | Haiku | Sonnet specs matcher + FM4 partial-result + test matrix |
 | #6 Doable after-image | — | Haiku | Re-uses #4's plan |
 | #7 Re-roll + rate limit | — | Haiku | Standard pattern |
 | #8 Save-as-PDF | — | Haiku | Library glue (pdf-lib / react-pdf) |
 | #9 Failure modes (FM2-FM5) | **Opus** | Haiku | Opus specs the FM state machine + cap-counting rules |
+| #9 Failure modes (FM2-FM5) | **Sonnet** | Haiku | Sonnet specs the FM state machine + cap-counting rules |
 | #10 Photo override | — | Haiku | Re-uses #4 + #7 plans |
 | #11 Catalog + auto-tag | — | Haiku | Auto-tag re-uses #2 extractor |
 | #12 Affiliate | — | Haiku | Trivial URL wrapping |
 | #13 PWA polish | **Opus** | Haiku | Opus authors iOS Safari quirks + Lighthouse remediation plan |
 | #14 DESIGN.md | **Opus** | Haiku | Opus authors DESIGN.md; Haiku refactors screens to use it |
+| #13 PWA polish | **Sonnet** | Haiku | Sonnet authors iOS Safari quirks + Lighthouse remediation plan |
+| #14 DESIGN.md | **Sonnet** | Haiku | Sonnet authors DESIGN.md; Haiku refactors screens to use it |
 
 **Sonnet's role shrinks** to fallback: when Opus's plan turns out to have a gap and you don't want to re-engage Opus mid-execution, Sonnet bridges the gap.
+**Sonnet's role expands** to primary planner for well-defined PRD tasks, while Opus is reserved for high-ambiguity prompt engineering tasks (like Issue #2) and Haiku remains the execution engine.
 
 **Mid-issue escalation triggers** (Haiku → Sonnet → Opus):
 

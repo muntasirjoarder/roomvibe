@@ -10,6 +10,7 @@ export default async function ResultPage({
 
   return (
     <main className="flex flex-col flex-1 px-6 py-12 sm:px-8 sm:py-16">
+      <div className="fixed top-4 right-6 text-micro uppercase text-mute">WIP</div>
       <div className="max-w-sm sm:max-w-md w-full mx-auto flex flex-col gap-12">
         <div className="flex flex-col gap-2 text-center">
           <div className="text-5xl">✓</div>
